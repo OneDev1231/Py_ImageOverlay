@@ -25,4 +25,7 @@ arguments:
 Designer.jpeg: host image
 10373.jpg: guest image
 -c 0.5,0.5: center position (x,y) 0 means left or top, 1 right or bottom
--s 0.1: size factor of the guest image 
+-s 0.1: size factor of the guest image
+
+4. Complete Overview
+python3 ./img_overlay_gdrive.py main
