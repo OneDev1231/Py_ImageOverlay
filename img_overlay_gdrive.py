@@ -15,7 +15,7 @@ import sys
 import pandas as pd
 
 host_folder = 'backgrounds'
-guest_folder_path = 'autoflows/New/abstract/freepik'
+guest_folder_path = 'autoflows/New'
 upload_folder_path = 'autoflows/Done'
 
 SERVICE_ACCOUNT_FILE = './google_disk_credentials/artshyne-f831362c316c.json'
@@ -52,7 +52,7 @@ def get_full_file_name(directory, base_name):
             return file
     return None
 
-def main_function(service):
+def main_function(service, folder_name):
     host_folder_id = find_folder_by_name(service, host_folder)
     host_files = list_files(service, host_folder_id)
     for f in host_files:
@@ -66,7 +66,8 @@ def main_function(service):
             r = download_folder(service, f['id'], os.path.join(host_folder, f['name']))
             if r is not True:
                 continue
-    guest_img_list = get_guest_images(service)
+    guest_folder_path_select = guest_folder_path + f"/{folder_name}"
+    guest_img_list = get_guest_images(service, guest_folder_path_select)
     print("Guest images are downloaded\n", guest_img_list)
 
     # Overlay images
@@ -94,13 +95,63 @@ def main_function(service):
                 print(f"File with base name {host_img_key} not found in {dir_path}")
     
     # Upload result images
-    upload_folder_id = find_folder_by_path(service, upload_folder_path)
+    upload_folder_id = find_folder_by_path(service, upload_folder_path + f'/{folder_name}')
     result_folder_path = Path('Done')
     for file in os.listdir(Path('Done')):
         result_file = result_folder_path / Path(file)
         upload_file(service, upload_folder_id, result_file, delete=True)
 
+# def main_function1(service):
+#     host_folder_id = find_folder_by_name(service, host_folder)
+#     host_files = list_files(service, host_folder_id)
+#     for f in host_files:
+#         if f['name'] == 'origins.xlsx':
+#             augment_list = analyze_excel_file(service, f)
+#     print(augment_list)
+#     host_image_dir_list = augment_list.keys()
+#     print("Directory", host_image_dir_list)
+#     for folder in host_files:
+#         if folder['name'] in host_image_dir_list:
+#             host_img_files = list_files(service, folder['id'])
+#             for host_img in host_img_files:
+                
+#             r = download_folder(service, f['id'], os.path.join(host_folder, f['name']))
+#             if r is not True:
+#                 continue
+            
+#     guest_img_list = get_guest_images(service)
+#     print("Guest images are downloaded\n", guest_img_list)
 
+#     # Overlay images
+#     # Create result folder if it doesn't exist
+#     result_folder_path = 'Done'
+#     result_folder_path = Path(result_folder_path)
+#     result_folder_path.mkdir(parents=True, exist_ok=True)
+#     for dir in host_image_dir_list:
+#         host_img_list = augment_list[dir]
+#         for host_img in host_img_list:
+#             host_img_key = next(iter(host_img.keys()))
+#             # Find the full file name within the directory
+#             dir_path = Path(host_folder) / dir
+#             full_file_name = get_full_file_name(dir_path, host_img_key)
+            
+#             if full_file_name:
+#                 host_path = dir_path / full_file_name
+#                 param = host_img[host_img_key]
+
+#                 for guest_img in guest_img_list:
+#                     guest_path = Path("guest_img") / guest_img['name']
+#                     result_path = result_folder_path / f"{guest_img['name']}_{full_file_name}"
+#                     overlay(host_path, guest_path, result_path, param)
+#             else:
+#                 print(f"File with base name {host_img_key} not found in {dir_path}")
+    
+#     # Upload result images
+#     upload_folder_id = find_folder_by_path(service, upload_folder_path)
+#     result_folder_path = Path('Done')
+#     for file in os.listdir(Path('Done')):
+#         result_file = result_folder_path / Path(file)
+#         upload_file(service, upload_folder_id, result_file, delete=True)
 
     
     
@@ -296,6 +347,7 @@ if __name__ == "__main__":
     parser_list = subparsers.add_parser('list')
     
     parser_main = subparsers.add_parser('main')
+    parser_main.add_argument('file')
     # parser_list.add_argument(''
 
     parser_delete = subparsers.add_parser('delete')
@@ -362,7 +414,7 @@ if __name__ == "__main__":
         upload_file(service, folder_id, result_path, delete=True)
 
     elif args.subparser == 'main':
-        main_function(service=service)
+        main_function(service=service, folder_name=args.file)
 #     if args.sdfsdf:
 #        pass
     # save final_
