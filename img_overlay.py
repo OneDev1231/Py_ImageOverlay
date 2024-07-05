@@ -43,7 +43,7 @@ def analyze_excel_file(service, file):
                 result[room_name].append(pic_dict)
     return result
 
-def main_function(service, folder_name):
+def main_function(service, folder_name, host_img_number, guest_img_number):
     host_folder_id = find_folder_by_name(service, host_folder)
     host_files = list_files(service, host_folder_id)
     for f in host_files:
@@ -56,9 +56,10 @@ def main_function(service, folder_name):
     host_images = {}
     for f in host_files:
         if f['name'] in host_image_dir_list:
-            host_images[f['name']] = download_folder(service, f['id'])
+            host_images[f['name']] = download_folder(service, f['id'], host_img_number)
+    print("host_images = \n", host_images)
     guest_folder_path_select = guest_folder_path + f"/{folder_name}"
-    guest_img_list = get_guest_images(service, guest_folder_path_select)
+    guest_img_list = get_guest_images(service, guest_folder_path_select, guest_img_number)
     print("Guest images are downloaded\n", guest_img_list)
 
     # Overlay images
@@ -86,15 +87,38 @@ def main_function(service, folder_name):
 
 image_extensions = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp', 'svg', 'ico', 'heic'}
 
-def get_guest_images(service, guest_folder_path):
+def get_guest_images(service, guest_folder_path, guest_img_number=None):
+    """
+    Retrieves and downloads guest images from the specified folder in Google Drive.
+
+    Parameters:
+    - service: Authenticated Google Drive API service instance.
+    - guest_folder_path: Path to the folder containing guest images.
+    - guest_img_number: (Optional) Number of images to download from each subfolder.
+    
+    Returns:
+    - Dictionary of image file names and their downloaded content.
+    """
     folder_id = find_folder_by_path(service, guest_folder_path)
-    folders = list_files(service, folder_id)
+    subfolders = list_files(service, folder_id)
     guest_images = {}
-    for folder in folders:
-        files = list_files(service, folder['id'])
-        for file in files:
-            if file['name'].split('.')[-1].lower() in image_extensions:
-                guest_images[file['name']] = download_file(service, file['id'])
+    image_extensions = {"jpg", "jpeg", "png", "gif"}
+
+    for subfolder in subfolders:
+        files = list_files(service, subfolder['id'])
+        if guest_img_number is None:
+            for file in files:
+                if file['name'].split('.')[-1].lower() in image_extensions:
+                    guest_images[file['name']] = download_file(service, file['id'])
+        else:
+            image_count = 0
+            for file in files:
+                if image_count >= guest_img_number:
+                    break
+                if file['name'].split('.')[-1].lower() in image_extensions:
+                    guest_images[file['name']] = download_file(service, file['id'])
+                    image_count += 1
+
     return guest_images
 
 def find_folder_by_name(service, folder_name, parent_id=None):
@@ -141,6 +165,7 @@ def list_files(service, folder_id, name=None):
             break
     for f in all_items:
         print(f"{f['name']} -> {f['id']}")
+    print("-"*60)
     return all_items
 
 def delete_file(service, file_id):
@@ -201,15 +226,17 @@ def download_file(service, file_id):
     done = False
     while not done:
         status, done = downloader.next_chunk()
-        print(f"Download {int(status.progress() * 100)}%.")
+        print(f"loading {int(status.progress() * 100)}%.")
     file_stream.seek(0)
     return file_stream
 
-def download_folder(service, folder_id):
+def download_folder(service, folder_id, host_img_number):
     query = f"'{folder_id}' in parents and trashed=false"
     results = service.files().list(q=query).execute()
     items = results.get('files', [])
     file_streams = {}
+    if host_img_number != None:
+        items = items[0: host_img_number]
     for item in items:
         file_id = item['id']
         file_name = item['name']
@@ -249,7 +276,9 @@ def overlay(host_img_stream, guest_img_stream, result_stream, param):
 
 if __name__ == "__main__":
     service = build('drive', 'v3', credentials=credentials)
-    parser = argparse.ArgumentParser()
-    parser.add_argument('file')
+    parser = argparse.ArgumentParser(description="Process some files.")
+    parser.add_argument('--folder', type=str)
+    parser.add_argument('--optional-hostimg', type=int)
+    parser.add_argument('--optional-guestimg', type=int)
     args = parser.parse_args()
-    main_function(service=service, folder_name=args.file)
+    main_function(service=service, folder_name=args.folder, host_img_number=args.optional_hostimg, guest_img_number=args.optional_guestimg )
